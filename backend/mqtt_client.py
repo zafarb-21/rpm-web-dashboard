@@ -3,6 +3,9 @@ import ssl
 import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List
+from .database import SessionLocal
+from .models import VitalRecord
+
 
 import paho.mqtt.client as mqtt
 
@@ -10,6 +13,32 @@ import paho.mqtt.client as mqtt
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+def flatten_vitals_payload(raw: dict) -> dict:
+    vitals = raw.get("vitals", {})
+    activity = raw.get("activity", {})
+    system = raw.get("system", {})
+
+    return {
+        "patient_id": raw.get("patient_id"),
+        "alert_level": raw.get("alert_level"),
+        "critical": raw.get("critical", False),
+        "received_at": raw.get("received_at"),
+
+        # vitals
+        "heart_rate": vitals.get("heart_rate"),
+        "spo2": vitals.get("spo2"),
+        "temperature": vitals.get("temperature"),
+        "ecg_heart_rate": vitals.get("ecg_heart_rate"),
+        "battery": vitals.get("battery"),
+        "ecg_quality": vitals.get("ecg_quality"),
+        "lead_off": vitals.get("lead_off"),
+
+        # activity
+        "fall_detected": activity.get("fall_detected"),
+
+        # system
+        "rssi": system.get("rssi"),
+    }
 
 class MQTTService:
     """
@@ -81,7 +110,29 @@ class MQTTService:
 
             # Route based on topic (your ESP32 uses these exact topics)
             if topic == "patient/vitals":
-                self.latest_vitals_store[patient_id] = data
+                flat = flatten_vitals_payload(data)
+                self.latest_vitals_store[patient_id] = flat
+                # Write to SQLite
+                db = SessionLocal()
+                try:
+                    rec = VitalRecord(
+                        patient_id=patient_id,
+                        alert_level=flat.get("alert_level"),
+                        critical=bool(flat.get("critical", False)),
+                        heart_rate=flat.get("heart_rate"),
+                        spo2=flat.get("spo2"),
+                        temperature=flat.get("temperature"),
+                        ecg_heart_rate=flat.get("ecg_heart_rate"),
+                        battery=flat.get("battery"),
+                        fall_detected=flat.get("fall_detected"),
+                        lead_off=flat.get("lead_off"),
+                        ecg_quality=flat.get("ecg_quality"),
+                        rssi=flat.get("rssi"),
+                    )
+                    db.add(rec)
+                    db.commit()
+                finally:
+                    db.close()
             elif topic == "patient/ecg_stream":
                 self.latest_ecg_store[patient_id] = data
             else:

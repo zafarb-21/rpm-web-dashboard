@@ -1,11 +1,13 @@
 from datetime import datetime
 import os
 from typing import Any, Dict, List
-
+from .database import engine
+from .models import Base
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-
+from .database import SessionLocal
+from .models import VitalRecord
 from .mqtt_client import MQTTService
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
@@ -38,7 +40,7 @@ def _get_topics() -> List[str]:
 @app.on_event("startup")
 def on_startup():
     global mqtt_service
-
+    Base.metadata.create_all(bind=engine)
     host = os.getenv("MQTT_HOST", "")
     port = int(os.getenv("MQTT_PORT", "8883"))
     user = os.getenv("MQTT_USERNAME", "")
@@ -92,3 +94,40 @@ def latest_ecg(patient_id: str):
     if patient_id not in LATEST_ECG:
         raise HTTPException(status_code=404, detail="No ECG stream received for this patient_id yet.")
     return {"patient_id": patient_id, "latest": LATEST_ECG[patient_id]}
+
+
+@app.get("/history/vitals/{patient_id}")
+def vitals_history(patient_id: str, limit: int = 100):
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(VitalRecord)
+            .filter(VitalRecord.patient_id == patient_id)
+            .order_by(VitalRecord.received_at.desc())
+            .limit(min(limit, 500))
+            .all()
+        )
+        # Return newest->oldest
+        return {
+            "patient_id": patient_id,
+            "count": len(rows),
+            "records": [
+                {
+                    "received_at": r.received_at.isoformat(),
+                    "alert_level": r.alert_level,
+                    "critical": r.critical,
+                    "heart_rate": r.heart_rate,
+                    "spo2": r.spo2,
+                    "temperature": r.temperature,
+                    "ecg_heart_rate": r.ecg_heart_rate,
+                    "battery": r.battery,
+                    "fall_detected": r.fall_detected,
+                    "lead_off": r.lead_off,
+                    "ecg_quality": r.ecg_quality,
+                    "rssi": r.rssi,
+                }
+                for r in rows
+            ],
+        }
+    finally:
+        db.close()
