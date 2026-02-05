@@ -9,10 +9,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import SessionLocal
 from .models import VitalRecord
 from .mqtt_client import MQTTService
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 app = FastAPI(title="RPM Web Dashboard API", version="0.3.0")
+
+ROOT_DIR = os.path.dirname(os.path.dirname(__file__))  # repo root
+FRONTEND_DIR = os.path.join(ROOT_DIR, "frontend")
+
+app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+
+@app.get("/")
+def dashboard():
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 app.add_middleware(
     CORSMiddleware,

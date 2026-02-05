@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RPM Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Remote Patient Monitoring</h1>
+      <p class="sub">Live vitals + history</p>
+    </div>
+
+    <div class="controls">
+      <label>
+        Patient
+        <select id="patientSelect"></select>
+      </label>
+      <button id="refreshBtn">Refresh</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>Status</h2>
+      <div class="statusRow">
+        <span id="alertBadge" class="badge">—</span>
+        <span class="muted" id="receivedAt">—</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Vitals</h2>
+      <div class="kpis">
+        <div class="kpi"><div class="label">Heart Rate</div><div class="value" id="hr">—</div></div>
+        <div class="kpi"><div class="label">SpO₂</div><div class="value" id="spo2">—</div></div>
+        <div class="kpi"><div class="label">Temp (°C)</div><div class="value" id="temp">—</div></div>
+        <div class="kpi"><div class="label">ECG HR</div><div class="value" id="ecgHr">—</div></div>
+        <div class="kpi"><div class="label">Battery</div><div class="value" id="battery">—</div></div>
+      </div>
+
+      <div class="flags">
+        <span id="fall" class="pill">Fall: —</span>
+        <span id="leadOff" class="pill">Lead-off: —</span>
+        <span id="ecgQuality" class="pill">ECG: —</span>
+        <span id="rssi" class="pill">RSSI: —</span>
+      </div>
+    </section>
+
+    <section class="card chartCard">
+      <h2>Heart Rate History</h2>
+      <canvas id="hrChart"></canvas>
+    </section>
+
+    <section class="card chartCard">
+      <h2>SpO₂ History</h2>
+      <canvas id="spo2Chart"></canvas>
+    </section>
+
+    <section class="card chartCard">
+      <h2>Temperature History</h2>
+      <canvas id="tempChart"></canvas>
+    </section>
+  </main>
+
+  <footer class="footer muted">
+    Tip: open this link on your phone — it’s responsive.
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
