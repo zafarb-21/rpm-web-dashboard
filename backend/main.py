@@ -143,3 +143,9 @@ def vitals_history(patient_id: str, limit: int = 100):
         }
     finally:
         db.close()
+@app.get("/latest/ecg/{patient_id}")
+def get_latest_ecg(patient_id: str):
+    data = mqtt_service.latest_ecg_store.get(patient_id)
+    if not data:
+        return {"error": "No ECG data available"}
+    return data

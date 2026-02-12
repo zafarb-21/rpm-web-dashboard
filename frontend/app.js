@@ -5,7 +5,7 @@ const refreshBtn = document.getElementById("refreshBtn");
 
 const el = (id) => document.getElementById(id);
 
-let hrChart, spo2Chart, tempChart;
+let hrChart, spo2Chart, tempChart, ecgChart;
 
 function setBadge(level) {
   const badge = el("alertBadge");
@@ -61,6 +61,24 @@ function ensureChart(canvasId, label) {
   });
 }
 
+function ensureEcgChart(canvasId) {
+  const ctx = document.getElementById(canvasId);
+  return new Chart(ctx, {
+    type: "line",
+    data: { labels: [], datasets: [{ label: "ECG", data: [] }] },
+    options: {
+      responsive: true,
+      animation: false,
+      plugins: { legend: { display: true } },
+      elements: { point: { radius: 0 } },
+      scales: {
+        x: { display: false },
+        y: { display: true }
+      }
+    }
+  });
+}
+
 function updateChart(chart, records, field) {
   // records come newest->oldest from your endpoint; reverse for time increasing
   const ordered = [...records].reverse();
@@ -100,6 +118,17 @@ async function loadHistory(patientId) {
   updateChart(tempChart, records, "temperature");
 }
 
+async function loadECG(patientId) {
+  const data = await fetchJSON(`/latest/ecg/${encodeURIComponent(patientId)}`);
+  const samples = data.ecg_samples || [];
+
+  // Plot the samples as y-values, x-values are sample index
+  ecgChart.data.labels = samples.map((_, i) => i);
+  ecgChart.data.datasets[0].data = samples;
+
+  ecgChart.update();
+}
+
 async function refreshAll() {
   const patientId = patientSelect.value;
   if (!patientId) return;
@@ -111,6 +140,7 @@ async function main() {
   hrChart = ensureChart("hrChart", "HR (bpm)");
   spo2Chart = ensureChart("spo2Chart", "SpO₂ (%)");
   tempChart = ensureChart("tempChart", "Temp (°C)");
+  ecgChart = ensureEcgChart("ecgChart");
 
   await loadPatients();
   await refreshAll();
@@ -125,4 +155,28 @@ async function main() {
 main().catch(err => {
   console.error(err);
   alert("Dashboard error: " + err.message);
+});
+
+const ecgCtx = document.getElementById("ecgChart").getContext("2d");
+
+const ecgChart = new Chart(ecgCtx, {
+    type: "line",
+    data: {
+        labels: [],
+        datasets: [{
+            label: "ECG Signal",
+            data: [],
+            borderColor: "red",
+            borderWidth: 1,
+            pointRadius: 0,
+            tension: 0
+        }]
+    },
+    options: {
+        animation: false,
+        scales: {
+            x: { display: false },
+            y: { beginAtZero: false }
+        }
+    }
 });
